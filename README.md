@@ -1,4 +1,4 @@
-# webMethods DevOps framework (V1.0)
+# webMethods DevOps sample framework
 
 ## Overview
 
