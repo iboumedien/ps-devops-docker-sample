@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a framework that aims to implement both continuous integration and docker image creation.
+This project is a framework that aims to implement both continuous integration and docker image creation for Integration Server (with Process Engine)
 
 ## Architecture
 
