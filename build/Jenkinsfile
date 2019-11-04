@@ -1,5 +1,5 @@
 //Global variable definition
-def repoUtilsUrl="https://github.com/aminemerdassi/ps-devops-docker.git"
+def repoUtilsUrl="https://github.com/aminemerdassi/ps-devops-docker-sample.git"
 def repoUtilsBranch="master"
 def repoUtilsCredential = "CREDENTIAL_GITHUB_USERNAME"
 def dirUtils="build" 
@@ -220,23 +220,7 @@ pipeline {
 
         			}  
 				}
-			}
-
-		stage('Test IS package image') {
-			when {
-				allOf {
-					expression {"${params.CREATE_PACKAGE_IMAGE}" == "true"}
-					expression { "${params.ENABLE_IS_BUILD}" == 'true' || "${params.ENABLE_BPM_BUILD}" == 'true' }
-				}
-			}
-			steps {
-				script {
-						sh "docker rm --force iscontainer"
-						sh "docker run -d -p 5590:5555 --name iscontainer -v /app/tools/msr/:/app -e SAG_IS_CONFIG_PROPERTIES=/app/application_dev.properties ${params.DOCKER_IMAGE_PACKAGE}.${params.BUILD_VERSION}"
-        			}  
-				}
-			}
-	
+			}	
 		}
 
 }
