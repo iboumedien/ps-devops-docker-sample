@@ -1,0 +1,459 @@
+//Global variable definition
+def repoUtilsUrl="https://github.com/aminemerdassi/ps-devops-docker.git"
+def repoUtilsBranch="master"
+def repoUtilsCredential = "CREDENTIAL_GITHUB_USERNAME"
+def dirUtils="build" 
+def props
+def dirWorkspace
+def dirSagInstall
+
+node {
+	
+	cleanWs()
+
+	git branch: "${repoUtilsBranch}", credentialsId: "${repoUtilsCredential}", url: "${repoUtilsUrl}"
+	
+	brancheParams = readFile "${dirUtils}/parameters/branches.properties"
+	envParams = readFile "${dirUtils}/parameters/env.properties"
+	moduleParams = readFile "${dirUtils}/parameters/modules.properties"
+	
+	
+}
+
+pipeline {
+
+	agent any
+	
+	options { 
+		disableConcurrentBuilds() 
+	}
+	
+	parameters {
+	    choice(
+		    choices: 'false\ntrue',
+		    description: 'Create base image',
+		    name: 'CREATE_BASE_IMAGE')
+        string(
+        	defaultValue: "x:x", 
+        	description: 'Base image name', 
+        	name: 'DOCKER_IMAGE_BASE')
+	    choice(
+		    choices: 'false\ntrue',
+		    description: 'Create package image',
+		    name: 'CREATE_PACKAGE_IMAGE')
+        string(
+        	defaultValue: "x:x", 
+        	description: 'Package image name', 
+        	name: 'DOCKER_IMAGE_PACKAGE')
+        string(
+        	defaultValue: "xxx", 
+        	description: 'Build version', 
+        	name: 'BUILD_VERSION')
+        choice(
+            choices: "${moduleParams}",
+            description: 'Module to build',
+            name: 'MODULE')
+		choice(
+            choices: "${brancheParams}",
+            description: 'Branch to build',
+            name: 'BRANCH')
+	    choice(
+		    choices: 'false\ntrue',
+		    description: 'Enable IS Build',
+		    name: 'ENABLE_IS_BUILD')
+	    choice(
+		    choices: 'false\ntrue',
+		    description: 'Enable BPM Build',
+		    name: 'ENABLE_BPM_BUILD')
+	    choice(
+		    choices: 'false\ntrue',
+		    description: 'Enable MWS Build',
+		    name: 'ENABLE_MWS_BUILD')
+	    choice(
+		    choices: 'false\ntrue',
+		    description: 'Enable UM Build',
+		    name: 'ENABLE_UM_BUILD')
+	}
+
+
+	stages {
+		
+		/** Read build properties file and create workspace directories **/
+	    stage ('Prepare worspace') {
+	        steps {
+	            script {
+	            	//Read properties from file
+	            	props = readProperties file: "${dirUtils}/properties/build.properties"
+	            	
+	            	//Initialize global properties
+	            	dirWorkspace = props['dir.workspace'] +"/"+ props['dir.'+"${MODULE}".toLowerCase()]
+            	
+	            	//Create workspace subdirectories (used by ABE)
+	                sh "mkdir -p ${dirWorkspace}/archive;\
+					    mkdir -p ${dirWorkspace}/logs;\
+					    mkdir -p ${dirWorkspace}/source;\
+					    mkdir -p ${dirWorkspace}/builds;"
+	            }
+	        }
+	    }
+	    
+	    /** Create a docker base image from a generated dockerfile ${dockerFileBase} **/
+	    
+		stage('Create IS base image') {
+			when {
+				expression {"${params.CREATE_BASE_IMAGE}" == "true"}
+			}
+			steps {
+				script {
+						createBaseImage(props,"${params.DOCKER_IMAGE_BASE}")
+        			}
+				}
+			}	    
+	    
+	    stage ('Checkout source code') {
+			when {
+    			anyOf {
+						expression { "${params.ENABLE_IS_BUILD}" == 'true' }
+						expression { "${params.ENABLE_BPM_BUILD}" == 'true' }
+						expression { "${params.ENABLE_MWS_BUILD}" == 'true' }
+						expression { "${params.ENABLE_UM_BUILD}" == 'true' }
+    			}
+			}
+	        steps {
+	            script {
+	            	
+	            	repositoryAssetsUrl=props['repo.url.'+"${params.MODULE}".toLowerCase()]
+	            	repoAssetsCredential=props['repo.credential.'+"${params.MODULE}".toLowerCase()]
+	            	
+	                dir("${dirWorkspace}/source"){
+	                   git branch: "${params.BRANCH}", credentialsId: "${repoAssetsCredential}", url: "${repositoryAssetsUrl}"
+	                }
+	            }
+	        }
+	    }	    
+	    
+	    
+		stage('Build source code') {
+			when {
+    			anyOf {
+						expression { "${params.ENABLE_IS_BUILD}" == 'true' }
+						expression { "${params.ENABLE_BPM_BUILD}" == 'true' }
+						expression { "${params.ENABLE_MWS_BUILD}" == 'true' }
+						expression { "${params.ENABLE_UM_BUILD}" == 'true' }
+    			}
+			}
+			steps {
+						
+					buildAsRepo(props,"${dirWorkspace}","${params.BUILD_VERSION}","${params.ENABLE_IS_BUILD}","${params.ENABLE_BPM_BUILD}","${params.ENABLE_MWS_BUILD}","${params.ENABLE_UM_BUILD}")
+				
+				}
+			}
+
+		stage ('Deploy source code') {
+			when {
+    			anyOf {
+						expression { "${params.ENABLE_IS_BUILD}" == 'true' }
+						expression { "${params.ENABLE_BPM_BUILD}" == 'true' }
+						expression { "${params.ENABLE_MWS_BUILD}" == 'true' }
+						expression { "${params.ENABLE_UM_BUILD}" == 'true' }
+    			}
+			}		
+			parallel {
+				stage ('IS') {
+					when {
+						expression { "${params.ENABLE_IS_BUILD}" == 'true' }
+					}
+					steps {
+
+						createProject(props,"${dirWorkspace}","${dirUtils}","${params.MODULE}","*","IS","${params.BUILD_VERSION}") 
+						deployProject(props,"${params.MODULE}","IS","${params.BUILD_VERSION}") 
+
+					}
+			    }
+			    
+				stage ('BPM') {
+					when {
+						expression { "${params.ENABLE_BPM_BUILD}" == 'true' }
+					}
+					steps {
+						createProject(props,"${dirWorkspace}","${dirUtils}","${params.MODULE}","*","BPM","${params.BUILD_VERSION}") 
+						deployProject(props,"${params.MODULE}","BPM","${params.BUILD_VERSION}") 
+					}
+			    }
+				stage ('MWS') {
+					when {
+						expression { "${params.ENABLE_MWS_BUILD}" == 'true' }
+					}
+					steps {
+						createProject(props,"${dirWorkspace}","${dirUtils}","${params.MODULE}","*","MWS","${params.BUILD_VERSION}") 
+						deployProject(props,"${params.MODULE}","MWS","${params.BUILD_VERSION}") 
+
+					}
+			    }
+
+				stage ('UM') {
+					when {
+						expression { "${params.ENABLE_UM_BUILD}" == 'true' }
+					}
+					steps {
+						createProject(props,"${dirWorkspace}","${dirUtils}","${params.MODULE}","*","UM","${params.BUILD_VERSION}") 
+						deployProject(props,"${params.MODULE}","UM","${params.BUILD_VERSION}") 
+
+					}
+			    }
+
+			}	
+		}
+
+
+		stage('Create IS package image') {
+			when {
+				allOf {
+					expression {"${params.CREATE_PACKAGE_IMAGE}" == "true"}
+					expression { "${params.ENABLE_IS_BUILD}" == 'true' || "${params.ENABLE_BPM_BUILD}" == 'true' }
+				}
+			}
+			steps {
+				script {
+
+						createPackagesImage(props, "${dirUtils}","${dirWorkspace}","${params.DOCKER_IMAGE_BASE}","${params.DOCKER_IMAGE_PACKAGE}.${params.BUILD_VERSION}","${params.BUILD_VERSION}","${params.ENABLE_BPM_BUILD}")
+
+        			}  
+				}
+			}
+
+		stage('Test IS package image') {
+			when {
+				allOf {
+					expression {"${params.CREATE_PACKAGE_IMAGE}" == "true"}
+					expression { "${params.ENABLE_IS_BUILD}" == 'true' || "${params.ENABLE_BPM_BUILD}" == 'true' }
+				}
+			}
+			steps {
+				script {
+						sh "docker rm --force iscontainer"
+						sh "docker run -d -p 5590:5555 --name iscontainer -v /app/tools/msr/:/app -e SAG_IS_CONFIG_PROPERTIES=/app/application_dev.properties ${params.DOCKER_IMAGE_PACKAGE}.${params.BUILD_VERSION}"
+        			}  
+				}
+			}
+	
+		}
+
+}
+
+
+def buildAsRepo(props, dirWorkspace, buildVersion, enableIsBuild, enableBpmBuild, enableMwsBuild, enableUmBuild) {
+    
+    dirSagInstall=props['dir.install.build']
+    dirAssetIS=props['dir.asset.is']
+    dirAssetBPM=props['dir.asset.bpm']
+    dirAssetMWS=props['dir.asset.mws']
+    dirAssetUM=props['dir.asset.um']
+
+	sh "${dirSagInstall}/common/AssetBuildEnvironment/bin/build.sh\
+         -Dsag.install.dir=$dirSagInstall\
+         -Dbuild.source.dir=$dirWorkspace/source/$dirAssetIS\\;$dirWorkspace/source/$dirAssetBPM\\;$dirWorkspace/source/$dirAssetMWS\\;$dirWorkspace/source/$dirAssetUM\
+         -Dbuild.output.dir=$dirWorkspace/builds\
+         -Dbuild.version=$buildVersion\
+         -Dbuild.archive.dir=$dirWorkspace/archive\
+         -Dbuild.log.fileName=$dirWorkspace/logs/log_" + "$buildVersion" + ".txt\
+         -Denable.build.IS=$enableIsBuild\
+         -Denable.build.BPM=$enableBpmBuild\
+         -Denable.build.MWS=$enableMwsBuild\
+         -Denable.build.UniversalMessaging=$enableUmBuild\
+         -Denable.archive=true"
+}
+
+def createProject(props, dirWorkspace, dirUtils, module, assetPrefix, type, buildVersion) {
+
+    dirSagInstall=props['dir.install.build']
+    dirTemplates="${workspace}/${dirUtils}/templates"
+	deployerHome=props['dir.install.build']+"/"+props['dir.install.deployer']
+	deployerHost=props['deployer.host']	
+	deployerPort=props['deployer.port']
+	deployerUser=props['deployer.user']
+	deployerPwd=props['deployer.pwd']
+
+	projectName = "${module}_${type}_${buildVersion}"	
+	repositoryAlias="${module}_Repo"
+	repositoryPath="${dirWorkspace}/builds"
+	automatorFile = "${dirWorkspace}/Automator_${type}.xml"
+	    
+	switch("${type}") {
+		case "IS":
+				xmlTemplate="${dirTemplates}/"+props['template.base.is']
+				xsltTemplate="${dirTemplates}/"+props['templete.xslt.is']
+				targetAlias=props['target.alias.is']
+				targetHost=props['target.host.is']
+				targetPort=props['target.port.is']
+				targetUser=props['target.user.is']
+				targetPwd=props['target.pwd.is']
+				targetVersion=props['target.version.is']							
+				depSetName=props['dep.set.is']
+				depMapName=props['dep.map.is']
+				depCanName=props['dep.can.is']
+			break
+		case "BPM":
+				xmlTemplate="${dirTemplates}/"+props['template.base.bpm']
+				xsltTemplate="${dirTemplates}/"+props['templete.xslt.bpm']
+				targetAlias=props['target.alias.bpm']
+				targetHost=props['target.host.bpm']
+				targetPort=props['target.port.bpm']
+				targetUser=props['target.user.bpm']
+				targetPwd=props['target.pwd.bpm']
+				targetVersion=props['target.version.bpm']							
+				depSetName=props['dep.set.bpm']
+				depMapName=props['dep.map.bpm']
+				depCanName=props['dep.can.bpm']
+			break	    	
+		case "MWS":
+				xmlTemplate="${dirTemplates}/"+props['template.base.mws']
+				xsltTemplate="${dirTemplates}/"+props['templete.xslt.mws']
+				targetAlias=props['target.alias.mws']
+				targetHost=props['target.host.mws']
+				targetPort=props['target.port.mws']
+				targetUser=props['target.user.mws']
+				targetPwd=props['target.pwd.mws']
+				targetVersion=props['target.version.mws']							
+				depSetName=props['dep.set.mws']
+				depMapName=props['dep.map.mws']
+				depCanName=props['dep.can.mws']
+			break 
+		case "UM":
+				xmlTemplate="${dirTemplates}/"+props['template.base.um']
+				xsltTemplate="${dirTemplates}/"+props['templete.xslt.um']
+				targetAlias=props['target.alias.um']
+				targetHost=props['target.host.um']
+				targetPort=props['target.port.um']
+				targetUser=props['target.user.um']
+				targetPwd=props['target.pwd.um']
+				targetVersion=props['target.version.um']							
+				depSetName=props['dep.set.um']
+				depMapName=props['dep.map.um']
+				depCanName=props['dep.can.um']
+			break
+		default:
+			error("Unsupported project type : ${type}")    
+			break
+	}
+	
+		sh "$dirSagInstall/common/lib/ant/bin/ant -file $dirTemplates/build-custom.xml createRepositoryProject \
+        -Dsag.install.dir=$dirSagInstall\
+		-Dautomator.file=$automatorFile \
+		-Dautomator.template=$xmlTemplate \
+		-Dxslt.template=$xsltTemplate \
+		-Ddeployer.home=$deployerHome \
+		-Ddeployer.host=$deployerHost \
+		-Ddeployer.port=$deployerPort \
+		-Ddeployer.user=$deployerUser \
+		-Ddeployer.pwd=$deployerPwd \
+		-Drepository.alias=$repositoryAlias \
+		-Drepository.path=$repositoryPath \
+		-Dproj.name=$projectName\
+		-Ddeployment.name=$depSetName \
+		-Dmap.name=$depMapName \
+		-Dcandidate.name=$depCanName \
+		-Dtarget.alias=$targetAlias \
+		-Dtarget.host=$targetHost \
+		-Dtarget.port=$targetPort \
+		-Dtarget.user=$targetUser \
+		-Dtarget.pwd=$targetPwd \
+		-Dtarget.version=$targetVersion \
+		-Dcomposite.name=$assetPrefix \
+		-Dbuild.version=$buildVersion"	
+
+}
+
+def deployProject(props, module, type, buildVersion) {
+
+	projectName = "${module}_${type}_${buildVersion}"
+	deployerHome=props['dir.install.build']+"/"+props['dir.install.deployer']
+	deployerHost=props['deployer.host']	
+	deployerPort=props['deployer.port']
+	deployerUser=props['deployer.user']
+	deployerPwd=props['deployer.pwd']
+
+	switch("${type}") {
+		case "IS":			
+				depCanName=props['dep.can.is']
+			break
+		case "BPM":
+				depCanName=props['dep.can.bpm']		
+			break	    	
+		case "MWS":
+				depCanName=props['dep.can.mws']		
+			break 
+		case "UM":
+				depCanName=props['dep.can.um']		
+			break
+		default:
+			error("Unsupported project type : ${type}")    
+			break
+	}
+
+	sh "$deployerHome/bin/Deployer.sh --checkpoint -project $projectName -dc $depCanName -host $deployerHost -port $deployerPort -user $deployerUser -pwd $deployerPwd"
+	sh "$deployerHome/bin/Deployer.sh --deploy -project $projectName -dc $depCanName -host $deployerHost -port $deployerPort -user $deployerUser -pwd $deployerPwd"
+	
+}
+
+def createBaseImage(props, baseImageName) {
+    
+	dirSagInstall = props['dir.install.run']
+	dockerFileBase = props['docker.file.base']
+	
+	sh"${dirSagInstall}/IntegrationServer/docker/is_container.sh build -Dfile.name=${dockerFileBase} -Dimage.name=${baseImageName}"
+
+        
+}
+
+
+def createPackagesImage(props, dirUtils, dirWorkspace, baseImageName, packageImageName, buildversion,  enableBpmBuild) {
+
+    dirSagInstall=props['dir.install.run']
+	targetPort=props['target.port.is']
+    dirSagBuild="${dirSagInstall}/IntegrationServer/instances/default/packages"
+	dockerfilePackage = props['docker.file.package']
+	
+	sh "${dirSagInstall}/IntegrationServer/docker/is_container.sh createPackageDockerfile -Dimage.name=${baseImageName} -Dfile.name=${dockerfilePackage}"
+	
+	//If BPM build is enabled include PM in the package dockerfile
+	if ("${enableBpmBuild}" == 'true') {
+		includeDeployment (props, dirUtils, dirWorkspace, buildversion)
+	} else {
+			sh "echo 'HEALTHCHECK --interval=30s --timeout=20s --start-period=60s --retries=6 CMD curl -sSf localhost:${targetPort}/invoke/wm.server/ping/ > /dev/null || exit 1' >> ${dirSagInstall}/IntegrationServer/instances/default/packages/${dockerfilePackage}"
+	}
+	
+	sh "${dirSagInstall}/IntegrationServer/docker/is_container.sh buildPackage -Dfile.name=${dockerfilePackage} -Dimage.name=${packageImageName}"
+   
+}
+
+def includeDeployment (props, dirUtils, dirWorkspace, buildversion) {
+ 
+	dirSagInstall=props['dir.install.run']
+	dirFolderDeploy=props['dir.folder.deploy']
+	dirFolderRepo=props['dir.folder.repo']	
+    dirSagBuild="${dirSagInstall}/IntegrationServer/instances/default/packages"
+    dirSagDeploy="${dirSagBuild}/${dirFolderDeploy}"
+	dockerfilePackage = props['docker.file.package']
+                          
+   // Copy BPM composite repository
+   sh "rm -rf ${dirSagDeploy}/* && mkdir -p ${dirSagDeploy}/${dirFolderRepo}"
+   sh "cp -avr ${dirWorkspace}/builds/BPM ${dirSagDeploy}/${dirFolderRepo}/BPM"
+   
+   // Copy ant task def and project automator templates
+   sh "cp -avr  ${dirUtils}/templates/* ${dirSagDeploy}/"
+   sh "cp -avr  ${dirUtils}/scripts/* ${dirSagDeploy}/"
+   
+   // Create version file
+   sh "echo '${buildversion}' >> ${dirSagDeploy}/version.txt"
+   
+   //Update package dockerfile to inlude BPM composite repository and related auto deployment scripts
+   sh "echo 'RUN chmod u+x \${SAG_HOME}/IntegrationServer/instances/\${INSTANCE_NAME}/packages/${dirFolderDeploy}/*' >> ${dirSagInstall}/IntegrationServer/instances/default/packages/${dockerfilePackage}"
+   sh "echo 'ENV DIR_DEPLOY=\${SAG_HOME}/IntegrationServer/instances/\${INSTANCE_NAME}/packages/${dirFolderDeploy}' >> ${dirSagInstall}/IntegrationServer/instances/default/packages/${dockerfilePackage}"
+   sh "echo 'ENV DIR_REPOSITORY=\${SAG_HOME}/IntegrationServer/instances/\${INSTANCE_NAME}/packages/${dirFolderDeploy}/${dirFolderRepo}' >> ${dirSagInstall}/IntegrationServer/instances/default/packages/${dockerfilePackage}"
+   sh "echo 'HEALTHCHECK --interval=30s --timeout=20s --start-period=60s --retries=6 CMD \${SAG_HOME}/IntegrationServer/instances/\${INSTANCE_NAME}/packages/${dirFolderDeploy}/is-health-check.sh' >> ${dirSagInstall}/IntegrationServer/instances/default/packages/${dockerfilePackage}"              
+
+
+}
+
+

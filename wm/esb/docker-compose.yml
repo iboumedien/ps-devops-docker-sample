@@ -1,0 +1,68 @@
+#################################################################################
+# Copyright (c) 1999 - 2011 my-Channels Ltd
+# Copyright (c) 2012 - 2019 Software AG, Darmstadt, Germany and/or its licensors
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#################################################################################
+version: "3.3"
+services:
+  is:
+# Create the node using image. 
+    image: sag-is:105.0
+    restart: always
+    container_name: sag-isserver
+    ports:                         # expose the um server port, mappedport:exposed port
+     - "5555:5555"
+     - "9999:9999"
+     - "15006:15006"
+    healthcheck:
+      test: curl -sSf -u Administrator:manage http://localhost:5555/ > /dev/null || exit 1
+      interval: 1m
+      timeout: 30s
+      retries: 3
+    volumes:                       # Persisting the data directory
+     - data-server:/opt/softwareag
+    environment:                  # runtime parameters
+     - SERVICE_NAME=isserver
+     - IS_DB_URL=jdbc:mysql://192.168.50.101:3406/sagdb?relaxAutoCommit=true
+     - IS_DB_USER=saguser
+     - IS_DB_PWD={AES}Mgt1VgiF1DSURyXYlmtG8Q\=\=
+     - IS_REALM_URL=nsp://192.168.50.101:9010
+     - IS_ENV=DEV
+  um:
+# Create the node using image. 
+    image:   sag-um:105.0
+    restart: always
+    container_name: sag-umserver
+    ports:                         # expose the um server port, mappedport:exposed port
+     - "9010:9000"
+    volumes:                       # Persisting the data directory
+     - data:/opt/softwareag/UniversalMessaging/server/umserver/data
+     - logs:/opt/softwareag/UniversalMessaging/server/umserver/logs
+     - licence:/opt/softwareag/UniversalMessaging/server/umserver/licence
+     - conf:/opt/softwareag/common/conf
+    environment:                  # runtime parameters
+     - REALM_NAME=umserver
+     - INIT_JAVA_MEM_SIZE=2048
+     - MAX_JAVA_MEM_SIZE=2048
+     - MAX_DIRECT_MEM_SIZE=1G
+     - BASIC_AUTH_ENABLE=N
+     - BASIC_AUTH_MANDATORY=N
+volumes:
+  data-server:
+  data:
+  logs:
+  licence:
+  conf:

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><DeployerSpec exitOnError="true" sourceType="Repository">
+	<DeployerServer>
+		<!--<host>localhost:8210</host>
+		<user>Administrator</user>
+		<pwd>{DES}vrFIelCdkow=</pwd>-->
+	</DeployerServer>
+  <Environment>
+		<!--<IS>
+			<isalias name="RepoISTarget">
+				<host>localhost</host>
+				<port>8210</port>
+				<user>Administrator</user>
+				<pwd>{DES}vrFIelCdkow=</pwd>
+				<useSSL>false</useSSL>
+				<installDeployerResource>true</installDeployerResource>
+				<Test>false</Test>
+			</isalias>
+			<isalias name="RepoISTargetForLogicalServer">
+				<host>localhost</host>
+				<port>8210</port>
+				<user>Administrator</user>
+				<pwd>{DES}vrFIelCdkow=</pwd>
+				<useSSL>false</useSSL>
+				<installDeployerResource>true</installDeployerResource>
+				<Test>false</Test>
+			</isalias>
+		</IS>
+		<ProcessModel>
+			<pmalias name="RepoProdBPMTarget">
+				<host>localhost</host>
+				<port>8201</port>
+				<user>Administrator</user>
+				<pwd>{DES}vrFIelCdkow=</pwd>
+				<useSSL>false</useSSL>
+				<Test>true</Test>
+			</pmalias>	
+		</ProcessModel>
+		<EventServer>
+			<eventserveralias name="RepoProdBPMTarget">
+				<host>localhost</host>
+				<port>8201</port>
+				<user>Administrator</user>
+				<pwd>{DES}vrFIelCdkow=</pwd>
+				<useSSL>false</useSSL>
+				<Test>true</Test>
+			</eventserveralias>	
+		</EventServer>
+		<RulesServer>
+			<rulesalias name="RepoProdBPMTarget">
+				<host>localhost</host>
+				<port>8201</port>
+				<user>Administrator</user>
+				<pwd>{DES}vrFIelCdkow=</pwd>
+				<useSSL>false</useSSL>
+				<Test>true</Test>
+			</rulesalias>	
+		</RulesServer>		
+		<Repository>
+			<repalias name="RepoSource">
+				<type>FlatFile</type>
+				<urlOrDirectory>D:\myfolder\work\ReposForJ\Jan24</urlOrDirectory>
+				<Test>true</Test>
+			</repalias>
+		</Repository> -->
+		
+	</Environment>
+
+	<Projects projectPrefix="">
+	<!-- 
+		<Project description="" ignoreMissingDependencies="true" name="BPM1_ProcAppsAutomation_ANDjoin" overwrite="true" type="Repository">
+
+			<DeploymentSet autoResolve="full" description="" name="myDeploymentSet" srcAlias="RepoSource">
+	
+				<Composite name="ANDjoin" srcAlias="RepoSource" type="BPM"/>
+				<Component componentType="isdocumenttype" compositeName="DeployementSmokeTest" displayName="docTypes.subDocs:EmailDetails" name="docTypes.subDocs.EmailDetails" srcAlias="RepoSource" type="IS"/>
+			</DeploymentSet>
+			
+			<DeploymentMap description="" name="myDeploymentMap"/>			
+			<MapSetMapping mapName="myDeploymentMap" setName="myDeploymentSet">				
+				<alias type="ProcessModel">RepoProdBPMTarget</alias>
+				<alias type="IS">RepoISTarget</alias>
+				<alias logicalServer="Default" type="IS">RepoISTargetForLogicalServer</alias>
+			</MapSetMapping>	
+			<DeploymentCandidate description="" mapName="myDeploymentMap" name="myDeployment"/>
+		</Project>	
+	-->	
+	</Projects>
+</DeployerSpec>
