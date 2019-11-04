@@ -14,7 +14,6 @@ node {
 	git branch: "${repoUtilsBranch}", credentialsId: "${repoUtilsCredential}", url: "${repoUtilsUrl}"
 	
 	brancheParams = readFile "${dirUtils}/parameters/branches.properties"
-	envParams = readFile "${dirUtils}/parameters/env.properties"
 	moduleParams = readFile "${dirUtils}/parameters/modules.properties"
 	
 	
