@@ -243,7 +243,6 @@ Depending on parameters provided as inputs, below stages will be executed :
 4. Build source code : any of ENABLE_xxx_BUILD = true
 5. Deploy source code : any of ENABLE_xxx_BUILD = true
 6. Create IS package image : CREATE_PACKAGE_IMAGE = true && (ENABLE_IS_BUILD = true || ENABLE_BPM_BUILD = true) 
-7. Test IS package image : CREATE_PACKAGE_IMAGE = true && (ENABLE_IS_BUILD = true || ENABLE_BPM_BUILD = true) 
 
 
 _______________
