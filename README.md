@@ -96,7 +96,7 @@ Adding a git repository (containing assets to build) consists on updating the fo
 ```
 repo.url.<MODULE>=<GIT_REPOSITORY_URL>
 repo.credential.<MODULE>=<GIT_CREDENTIAL>
-dir..<MODULE>=<DIRECTORY_ASSET>
+dir.<MODULE>=<DIRECTORY_ASSET>
 ```
 
 Where :
@@ -237,13 +237,13 @@ Run created job by providing inputs parameters :
 
 Depending on parameters provided as inputs, below stages will be executed :
 
-* Prepare workspace : always
-* Create IS base image : when CREATE_BASE_IMAGE = true
-* Checkout source code : any of ENABLE_xxx_BUILD = true
-* Build source code : any of ENABLE_xxx_BUILD = true
-* Deploy source code : any of ENABLE_xxx_BUILD = true
-* Create IS package image : CREATE_PACKAGE_IMAGE = true && (ENABLE_IS_BUILD = true || ENABLE_BPM_BUILD = true) 
-* Test IS package image : CREATE_PACKAGE_IMAGE = true && (ENABLE_IS_BUILD = true || ENABLE_BPM_BUILD = true) 
+1. Prepare workspace : always
+2. Create IS base image : when CREATE_BASE_IMAGE = true
+3. Checkout source code : any of ENABLE_xxx_BUILD = true
+4. Build source code : any of ENABLE_xxx_BUILD = true
+5. Deploy source code : any of ENABLE_xxx_BUILD = true
+6. Create IS package image : CREATE_PACKAGE_IMAGE = true && (ENABLE_IS_BUILD = true || ENABLE_BPM_BUILD = true) 
+7. Test IS package image : CREATE_PACKAGE_IMAGE = true && (ENABLE_IS_BUILD = true || ENABLE_BPM_BUILD = true) 
 
 
 _______________
